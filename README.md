@@ -13,3 +13,8 @@ Stargazers over time
 --------------------
 
 [![Stargazers over time](https://starcharts.herokuapp.com/maliceio/malice.svg)](https://starcharts.herokuapp.com/maliceio/malice)
+
+NOTE
+----
+
+- https://bitbucket.org/cse-assemblyline/alsvc_kaspersky/src
