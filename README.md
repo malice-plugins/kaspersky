@@ -71,6 +71,10 @@ Find a bug? Want more features? Find something missing in the documentation? Let
 
 See [`CHANGELOG.md`](https://github.com/malice-plugins/kaspersky/blob/master/CHANGELOG.md)
 
+## Thanks
+
+Thank you [@abunasar](https://github.com/abunasar) for helping me get this AV completed!
+
 ## Contributing
 
 [See all contributors on GitHub](https://github.com/malice-plugins/kaspersky/graphs/contributors).
