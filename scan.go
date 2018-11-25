@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -16,10 +17,17 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/fatih/structs"
 	"github.com/gorilla/mux"
-	"github.com/malice-plugins/go-plugin-utils/database/elasticsearch"
-	"github.com/malice-plugins/go-plugin-utils/utils"
+	"github.com/malice-plugins/pkgs/database"
+	"github.com/malice-plugins/pkgs/database/elasticsearch"
+	"github.com/malice-plugins/pkgs/utils"
 	"github.com/parnurzeal/gorequest"
+	"github.com/pkg/errors"
 	"github.com/urfave/cli"
+)
+
+const (
+	name     = "kaspersky"
+	category = "av"
 )
 
 var (
@@ -27,142 +35,156 @@ var (
 	Version string
 	// BuildTime stores the plugin's build time
 	BuildTime string
-
-	path string
-)
-
-const (
-	name     = "zoner"
-	category = "av"
+	// LicenseKey stores the valid Dr.Web license key
+	LicenseKey string
+	path       string
+	hash       string
+	// es is the elasticsearch database object
+	es elasticsearch.Database
 )
 
 type pluginResults struct {
-	ID   string      `json:"id" structs:"id,omitempty"`
-	Data ResultsData `json:"zoner" structs:"zoner"`
+	ID   string      `json:"id" gorethink:"id,omitempty"`
+	Data ResultsData `json:"kaspersky" gorethink:"kaspersky"`
 }
 
-// Zoner json object
-type Zoner struct {
-	Results ResultsData `json:"zoner"`
+// Kaspersky json object
+type Kaspersky struct {
+	Results ResultsData `json:"kaspersky"`
 }
 
 // ResultsData json object
 type ResultsData struct {
-	Infected bool   `json:"infected" structs:"infected"`
-	Result   string `json:"result" structs:"result"`
-	Engine   string `json:"engine" structs:"engine"`
-	Updated  string `json:"updated" structs:"updated"`
+	Infected bool   `json:"infected" gorethink:"infected"`
+	Result   string `json:"result" gorethink:"result"`
+	Engine   string `json:"engine" gorethink:"engine"`
+	Database string `json:"database" gorethink:"database"`
+	Updated  string `json:"updated" gorethink:"updated"`
 	MarkDown string `json:"markdown,omitempty" structs:"markdown,omitempty"`
 	Error    string `json:"error,omitempty" structs:"error,omitempty"`
 }
 
 func assert(err error) {
 	if err != nil {
-		log.WithFields(log.Fields{
-			"plugin":   name,
-			"category": category,
-			"path":     path,
-		}).Fatal(err)
-	}
-}
-
-func startZavService(ctx context.Context) error {
-	// Zoner needs to have the daemon started first
-	_, err := utils.RunCommand(ctx, "/etc/init.d/zavd", "start", "--no-daemon")
-	return err
-}
-
-// AvScan performs antivirus scan
-func AvScan(timeout int) Zoner {
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
-	defer cancel()
-
-	// start service
-	assert(startZavService(ctx))
-
-	results, err := utils.RunCommand(ctx, "zavcli", path)
-	log.WithFields(log.Fields{
-		"plugin":   name,
-		"category": category,
-		"path":     path,
-	}).Debug("Zoner output: ", results)
-
-	if err != nil {
-		// Zoner exits with error status 11 if it finds a virus
-		if err.Error() != "exit status 11" {
+		// skip exit code 13 (which means a virus was found)
+		if err.Error() != "exit status 13" {
 			log.WithFields(log.Fields{
 				"plugin":   name,
 				"category": category,
 				"path":     path,
 			}).Fatal(err)
-		} else {
-			err = nil
 		}
 	}
-
-	return Zoner{Results: ParseZonerOutput(results, err)}
 }
 
-// ParseZonerOutput convert zoner output into ResultsData struct
-func ParseZonerOutput(zonerout string, err error) ResultsData {
+// AvScan performs antivirus scan
+func AvScan(timeout int) Kaspersky {
 
-	if err != nil {
-		return ResultsData{Error: err.Error()}
+	var output string
+	var sErr error
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
+	defer cancel()
+
+	expired, err := didLicenseExpire(ctx)
+	assert(err)
+	if expired {
+		err = updateLicense(ctx)
+		assert(err)
 	}
 
-	zoner := ResultsData{Infected: false}
+	// kaspersky needs to have the daemon started first
+	configd := exec.CommandContext(ctx, "/etc/init.d/kav4fs-supervisor start")
+	_, err = configd.Output()
+	assert(err)
+	defer configd.Process.Kill()
 
-	lines := strings.Split(zonerout, "\n")
+	time.Sleep(1 * time.Second)
 
-	// Extract Virus string
-	for _, line := range lines {
-		if len(line) != 0 {
-			if strings.Contains(line, "INFECTED") {
-				result := extractVirusName(line)
-				if len(result) != 0 {
-					zoner.Result = result
-					zoner.Infected = true
-				} else {
-					return ResultsData{Error: fmt.Sprint("[ERROR] virus name extracted was empty: ", result)}
-				}
-			}
-		}
+	log.Debug("running kav4fs-control --scan-file")
+	output, sErr = utils.RunCommand(ctx, "/opt/kaspersky/kav4fs/bin/kav4fs-control", "--scan-file", path)
+	if sErr != nil {
+		// If fails try a second time
+		time.Sleep(10 * time.Second)
+		log.Debug("re-running kav4fs-control --scan-file")
+		output, sErr = utils.RunCommand(ctx, "/opt/kaspersky/kav4fs/bin/kav4fs-control", "--scan-file", path)
 	}
-	zoner.Engine = getEngine()
-	zoner.Updated = getUpdatedDate()
 
-	return zoner
+	virusesInfo, err := utils.RunCommand(ctx, "/opt/kaspersky/kav4fs/bin/kav4fs-control", "--top-viruses")
+	assert(err)
+
+	results, err := ParseKasperskyOutput(output, virusesInfo, sErr)
+
+	return Kaspersky{Results: results}
 }
 
-// extractVirusName extracts Virus name from scan results string
-func extractVirusName(line string) string {
-	keyvalue := strings.Split(line, "INFECTED")
-	return strings.Trim(strings.TrimSpace(keyvalue[1]), "[]")
-}
+// ParseKasperskyOutput convert kaspersky output into ResultsData struct
+func ParseKasperskyOutput(kasperskyOut, baseInfo string, kasperskyErr error) (ResultsData, error) {
 
-func getEngine() string {
-	var engine = ""
-
-	// start service
-	startZavService(context.Background())
-
-	results, err := utils.RunCommand(nil, "zavcli", "--version-zavd")
 	log.WithFields(log.Fields{
 		"plugin":   name,
 		"category": category,
 		"path":     path,
-	}).Debug("Zoner DB version: ", results)
-	assert(err)
+	}).Debug("Kaspersky Output: ", kasperskyOut)
 
-	for _, line := range strings.Split(results, "\n") {
+	if kasperskyErr != nil {
+		if kasperskyErr.Error() == "exit status 119" {
+			return ResultsData{Error: "ScanEngine is not available"}, kasperskyErr
+		}
+		return ResultsData{Error: kasperskyErr.Error()}, kasperskyErr
+	}
+
+	kaspersky := ResultsData{
+		Infected: false,
+		Engine:   getKasperskyVersion(),
+		Updated:  getUpdatedDate(),
+	}
+
+	for _, line := range strings.Split(kasperskyOut, "\n") {
 		if len(line) != 0 {
-			if strings.Contains(line, "ZAVDB version:") {
-				engine = strings.TrimSpace(strings.TrimPrefix(line, "ZAVDB version:"))
+			if strings.Contains(line, "- Ok") {
+				break
+			}
+			if strings.Contains(line, "infected with") {
+				kaspersky.Infected = true
+				kaspersky.Result = strings.TrimSpace(strings.TrimPrefix(line, path+" - infected with"))
 			}
 		}
 	}
-	return engine
+
+	log.WithFields(log.Fields{
+		"plugin":   name,
+		"category": category,
+		"path":     path,
+	}).Debug("Kaspersky Base Info: ", baseInfo)
+
+	for _, line := range strings.Split(baseInfo, "\n") {
+		if len(line) != 0 {
+			if strings.Contains(line, "Core engine:") {
+				kaspersky.Engine = strings.TrimSpace(strings.TrimPrefix(line, "Core engine:"))
+			}
+			if strings.Contains(line, "Virus base records:") {
+				kaspersky.Database = strings.TrimSpace(strings.TrimPrefix(line, "Virus base records:"))
+			}
+		}
+	}
+
+	return kaspersky, nil
+}
+
+func getKasperskyVersion() string {
+
+	versionOut, err := utils.RunCommand(nil, "/opt/kaspersky/kav4fs/bin/kav4fs-control", "--version")
+	assert(err)
+
+	log.Debug("Kaspersky Version: ", versionOut)
+	return strings.TrimSpace(strings.TrimPrefix(versionOut, "kav4fs-control "))
+}
+
+func parseUpdatedDate(date string) string {
+	layout := "Mon, 02 Jan 2006 15:04:05 +0000"
+	t, _ := time.Parse(layout, date)
+	return fmt.Sprintf("%d%02d%02d", t.Year(), t.Month(), t.Day())
 }
 
 func getUpdatedDate() string {
@@ -170,33 +192,86 @@ func getUpdatedDate() string {
 		return BuildTime
 	}
 	updated, err := ioutil.ReadFile("/opt/malice/UPDATED")
-	utils.Assert(err)
+	assert(err)
 	return string(updated)
 }
 
 func updateAV(ctx context.Context) error {
-	fmt.Println("Updating Zoner...")
-	// Zoner needs to have the daemon started first
-	output, err := utils.RunCommand(nil, "/etc/init.d/zavd", "update")
-	log.WithFields(log.Fields{
-		"plugin":   name,
-		"category": category,
-		"path":     path,
-	}).Debug("Zoner update: ", output)
+	// kaspersky needs to have the daemon started first
+	configd := exec.Command("/etc/init.d/kav4fs-supervisor start")
+	_, err := configd.Output()
 	assert(err)
+	defer configd.Process.Kill()
 
+	fmt.Println("Updating Kaspersky...")
+	fmt.Println(utils.RunCommand(ctx, "/opt/kaspersky/kav4fs/bin/kav4fs-control", "--start-task", "6"))
+	fmt.Println(utils.RunCommand(ctx, "/opt/kaspersky/kav4fs/bin/kav4fs-control", "--progress", "6"))
 	// Update UPDATED file
 	t := time.Now().Format("20060102")
 	err = ioutil.WriteFile("/opt/malice/UPDATED", []byte(t), 0644)
 	return err
 }
 
-func generateMarkDownTable(z Zoner) string {
+func updateLicense(ctx context.Context) error {
+	// kaspersky needs to have the daemon started first
+	configd := exec.CommandContext(ctx, "/etc/init.d/kav4fs-supervisor start")
+	_, err := configd.Output()
+	if err != nil {
+		return err
+	}
+	defer configd.Process.Kill()
+	time.Sleep(1 * time.Second)
+
+	// check for exec context timeout
+	if ctx.Err() == context.DeadlineExceeded {
+		return fmt.Errorf("command updateLicense() timed out")
+	}
+
+	log.Debug("updating Kaspersky license")
+	if len(LicenseKey) > 0 {
+		log.Debugln(utils.RunCommand(ctx, "/opt/kaspersky/kav4fs/bin/kav4fs-control", "--revoke-active-key", LicenseKey))
+		log.Debugln(utils.RunCommand(ctx, "/opt/kaspersky/kav4fs/bin/kav4fs-control", "--install-active-key", LicenseKey))
+	}
+
+	return nil
+}
+
+func didLicenseExpire(ctx context.Context) (bool, error) {
+	// kaspersky needs to have the daemon started first
+	configd := exec.CommandContext(ctx, "/etc/init.d/kav4fs-supervisor start")
+	_, err := configd.Output()
+	if err != nil {
+		return false, err
+	}
+	defer configd.Process.Kill()
+	time.Sleep(1 * time.Second)
+
+	log.Debug("checking Kaspersky license")
+	license := exec.CommandContext(ctx, "/opt/kaspersky/kav4fs/bin/kav4fs-control", "--query-status")
+	lOut, err := license.Output()
+	if err != nil {
+		return false, err
+	}
+	// TODO: FIX THIS !!!!!!!!
+	if strings.Contains(string(lOut), "No license") {
+		log.Debug("no licence found or licence has been invalidated")
+		return true, nil
+	}
+
+	if strings.Contains(string(lOut), "expires") {
+		return false, nil
+	}
+
+	log.WithFields(log.Fields{"output": string(lOut)}).Debug("licence expired")
+	return true, nil
+}
+
+func generateMarkDownTable(a Kaspersky) string {
 	var tplOut bytes.Buffer
 
-	t := template.Must(template.New("").Parse(tpl))
+	t := template.Must(template.New("kaspersky").Parse(tpl))
 
-	err := t.Execute(&tplOut, z)
+	err := t.Execute(&tplOut, a)
 	if err != nil {
 		log.Println("executing template:", err)
 	}
@@ -205,13 +280,16 @@ func generateMarkDownTable(z Zoner) string {
 }
 
 func printStatus(resp gorequest.Response, body string, errs []error) {
-	fmt.Println(resp.Status)
+	fmt.Println(body)
 }
 
 func webService() {
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/scan", webAvScan).Methods("POST")
-	log.Info("web service listening on port :3993")
+	log.WithFields(log.Fields{
+		"plugin":   name,
+		"category": category,
+	}).Info("web service listening on port :3993")
 	log.Fatal(http.ListenAndServe(":3993", router))
 }
 
@@ -222,57 +300,66 @@ func webAvScan(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintln(w, "Please supply a valid file to scan.")
-		log.Error(err)
+		log.WithFields(log.Fields{
+			"plugin":   name,
+			"category": category,
+		}).Error(err)
 	}
 	defer file.Close()
 
-	log.Debug("Uploaded fileName: ", header.Filename)
+	log.WithFields(log.Fields{
+		"plugin":   name,
+		"category": category,
+	}).Debug("Uploaded fileName: ", header.Filename)
 
 	tmpfile, err := ioutil.TempFile("/malware", "web_")
-	if err != nil {
-		log.Fatal(err)
-	}
+	assert(err)
 	defer os.Remove(tmpfile.Name()) // clean up
 
 	data, err := ioutil.ReadAll(file)
 	assert(err)
 
 	if _, err = tmpfile.Write(data); err != nil {
-		log.Fatal(err)
+		assert(err)
 	}
 	if err = tmpfile.Close(); err != nil {
-		log.Fatal(err)
+		assert(err)
 	}
 
 	// Do AV scan
 	path = tmpfile.Name()
-	zoner := AvScan(60)
+	kaspersky := AvScan(60)
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
 
-	if err := json.NewEncoder(w).Encode(zoner); err != nil {
-		log.Fatal(err)
+	if err := json.NewEncoder(w).Encode(kaspersky); err != nil {
+		assert(err)
 	}
 }
 
 func main() {
 
-	var elastic string
-
 	cli.AppHelpTemplate = utils.AppHelpTemplate
 	app := cli.NewApp()
 
-	app.Name = "zoner"
+	app.Name = "kaspersky"
 	app.Author = "blacktop"
 	app.Email = "https://github.com/blacktop"
 	app.Version = Version + ", BuildTime: " + BuildTime
 	app.Compiled, _ = time.Parse("20060102", BuildTime)
-	app.Usage = "Malice Zoner AntiVirus Plugin"
+	app.Usage = "Malice Kaspersky AntiVirus Plugin"
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{
 			Name:  "verbose, V",
 			Usage: "verbose output",
+		},
+		cli.StringFlag{
+			Name:        "elasticsearch",
+			Value:       "",
+			Usage:       "elasticsearch url for Malice to store results",
+			EnvVar:      "MALICE_ELASTICSEARCH_URL",
+			Destination: &es.URL,
 		},
 		cli.BoolFlag{
 			Name:  "table, t",
@@ -280,7 +367,7 @@ func main() {
 		},
 		cli.BoolFlag{
 			Name:   "callback, c",
-			Usage:  "POST results to Malice webhook",
+			Usage:  "POST results back to Malice webhook",
 			EnvVar: "MALICE_ENDPOINT",
 		},
 		cli.BoolFlag{
@@ -288,16 +375,9 @@ func main() {
 			Usage:  "proxy settings for Malice webhook endpoint",
 			EnvVar: "MALICE_PROXY",
 		},
-		cli.StringFlag{
-			Name:        "elasitcsearch",
-			Value:       "",
-			Usage:       "elasitcsearch address for Malice to store results",
-			EnvVar:      "MALICE_ELASTICSEARCH",
-			Destination: &elastic,
-		},
 		cli.IntFlag{
 			Name:   "timeout",
-			Value:  60,
+			Value:  120,
 			Usage:  "malice plugin timeout (in seconds)",
 			EnvVar: "MALICE_TIMEOUT",
 		},
@@ -313,7 +393,7 @@ func main() {
 		},
 		{
 			Name:  "web",
-			Usage: "Create a Zoner scan web service",
+			Usage: "Create a Kaspersky scan web service",
 			Action: func(c *cli.Context) error {
 				webService()
 				return nil
@@ -330,50 +410,62 @@ func main() {
 
 		if c.Args().Present() {
 			path, err = filepath.Abs(c.Args().First())
-			utils.Assert(err)
+			assert(err)
 
-			if _, err := os.Stat(path); os.IsNotExist(err) {
-				utils.Assert(err)
+			if _, err = os.Stat(path); os.IsNotExist(err) {
+				assert(err)
 			}
 
-			zoner := AvScan(c.Int("timeout"))
-			zoner.Results.MarkDown = generateMarkDownTable(zoner)
+			hash = utils.GetSHA256(path)
 
+			kaspersky := AvScan(c.Int("timeout"))
+			kaspersky.Results.MarkDown = generateMarkDownTable(kaspersky)
 			// upsert into Database
-			elasticsearch.InitElasticSearch(elastic)
-			elasticsearch.WritePluginResultsToDatabase(elasticsearch.PluginResults{
-				ID:       utils.Getopt("MALICE_SCANID", utils.GetSHA256(path)),
-				Name:     name,
-				Category: category,
-				Data:     structs.Map(zoner.Results),
-			})
+			if len(c.String("elasticsearch")) > 0 {
+				err := es.Init()
+				if err != nil {
+					return errors.Wrap(err, "failed to initalize elasticsearch")
+				}
+				err = es.StorePluginResults(database.PluginResults{
+					ID:       utils.Getopt("MALICE_SCANID", hash),
+					Name:     name,
+					Category: category,
+					Data:     structs.Map(kaspersky.Results),
+				})
+				if err != nil {
+					return errors.Wrapf(err, "failed to index malice/%s results", name)
+				}
+			}
 
 			if c.Bool("table") {
-				fmt.Println(zoner.Results.MarkDown)
+				fmt.Printf(kaspersky.Results.MarkDown)
 			} else {
-				zoner.Results.MarkDown = ""
-				zonerJSON, err := json.Marshal(zoner)
-				utils.Assert(err)
-				if c.Bool("post") {
+				kaspersky.Results.MarkDown = ""
+				kasperskyJSON, err := json.Marshal(kaspersky)
+				assert(err)
+				if c.Bool("callback") {
 					request := gorequest.New()
 					if c.Bool("proxy") {
 						request = gorequest.New().Proxy(os.Getenv("MALICE_PROXY"))
 					}
 					request.Post(os.Getenv("MALICE_ENDPOINT")).
-						Set("X-Malice-ID", utils.Getopt("MALICE_SCANID", utils.GetSHA256(path))).
-						Send(string(zonerJSON)).
+						Set("X-Malice-ID", utils.Getopt("MALICE_SCANID", hash)).
+						Send(string(kasperskyJSON)).
 						End(printStatus)
 
 					return nil
 				}
-				fmt.Println(string(zonerJSON))
+				fmt.Println(string(kasperskyJSON))
 			}
 		} else {
-			log.Fatal(fmt.Errorf("please supply a file to scan with malice/zoner"))
+			log.WithFields(log.Fields{
+				"plugin":   name,
+				"category": category,
+			}).Fatal(fmt.Errorf("Please supply a file to scan with malice/%s", name))
 		}
 		return nil
 	}
 
 	err := app.Run(os.Args)
-	utils.Assert(err)
+	assert(err)
 }
