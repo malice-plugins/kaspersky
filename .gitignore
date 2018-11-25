@@ -16,3 +16,4 @@
 *.pdf
 *.bu
 kaspersky.key
+.vagrant/

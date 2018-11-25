@@ -48,11 +48,12 @@ RUN buildDeps='libreadline-dev:i386 \
   && echo "===> Install Kaspersky..." \
   && wget https://products.s.kaspersky-labs.com/multilanguage/file_servers/kavlinuxserver8.0/kav4fs_8.0.4-312_i386.deb -P /tmp \
   && DEBIAN_FRONTEND=noninteractive dpkg --force-architecture -i /tmp/kav4fs_8.0.4-312_i386.deb \
+  && chmod a+s /opt/kaspersky/kav4fs/bin/kav4fs-setup.pl \
   && chmod a+s /opt/kaspersky/kav4fs/bin/kav4fs-control \
   && chmod 0777 /etc/kaspersky/license.key \
   && /etc/init.d/kav4fs-supervisor start; sleep 10 && /opt/kaspersky/kav4fs/bin/kav4fs-control --install-active-key /etc/kaspersky/license.key \
   && echo "===> Clean up unnecessary files..." \
-  && apt-get purge -y --auto-remove $buildDeps \
+  # && apt-get purge -y --auto-remove $buildDeps \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives /tmp/* /var/tmp/*
 
@@ -60,15 +61,15 @@ RUN buildDeps='libreadline-dev:i386 \
 RUN apt-get update -qq && apt-get install -yq --no-install-recommends ca-certificates \
   && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-COPY install.conf /tmp
+COPY config/docker.conf /etc/kaspersky/docker.conf
 RUN /etc/init.d/kav4fs-supervisor start; sleep 10 \
-  && /opt/kaspersky/kav4fs/bin/kav4fs-setup.pl --auto-install=/tmp/install.conf
+  && /opt/kaspersky/kav4fs/bin/kav4fs-setup.pl --auto-install=/etc/kaspersky/docker.conf
 
-RUN \
-  echo "===> Updating AV..." \
-  && /etc/init.d/kav4fs-supervisor start; sleep 10 \
-  && /opt/kaspersky/kav4fs/bin/kav4fs-control --start-task 6 \
-  && /opt/kaspersky/kav4fs/bin/kav4fs-control --progress 6
+# RUN \
+#   echo "===> Updating AV..." \
+#   && /etc/init.d/kav4fs-supervisor start; sleep 10 \
+#   && /opt/kaspersky/kav4fs/bin/kav4fs-control --start-task 6 \
+#   && /opt/kaspersky/kav4fs/bin/kav4fs-control --progress 6
 
 # Add EICAR Test Virus File to malware folder
 ADD http://www.eicar.org/download/eicar.com.txt /malware/EICAR
