@@ -10,7 +10,7 @@ Malice Kaspersky Antivirus Plugin
 
 ## :warning: STATUS :warning:
 
-Not working in docker, but is working in Vagrant, probably due to a syscall being blacklisted?
+I just need to finish the golang wrapper (it will be a slow AV though :snail:)
 
 ### Dependencies
 
