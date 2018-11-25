@@ -28,3 +28,7 @@ https://my.kaspersky.com/MyLicenses#allx
 ## Others
 
 - https://bitbucket.org/cse-assemblyline/alsvc_kaspersky/src
+
+## Ideas
+
+- [ ] Is it failing because of locale? Is it timing out when pulling the updates because it isn't using USA?

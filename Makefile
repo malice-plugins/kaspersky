@@ -15,6 +15,10 @@ all: build size tag test_all
 build:
 	docker build -t $(ORG)/$(NAME):$(VERSION) .
 
+.PHONY: build_no_cache
+build_no_cache:
+	docker build --no-cache -t $(ORG)/$(NAME):$(VERSION) .
+
 .PHONY: build_w_key
 build_w_key:
 	docker build --build-arg KASPERSKY_KEY=${KASPERSKY_KEY} -t $(ORG)/$(NAME):$(VERSION) .
@@ -34,6 +38,7 @@ tags:
 .PHONY: ssh
 ssh:
 	@docker run --init -it --rm --name $(NAME) --entrypoint=bash $(ORG)/$(NAME):$(VERSION)
+	# --privileged --security-opt apparmor=unconfined
 
 .PHONY: tar
 tar:
@@ -49,17 +54,17 @@ go-test:
 	go test -v
 
 avtest:
-	@echo "===> Dr.WEB Version"
+	@echo "===>  Version"
 	@docker run --init --rm --entrypoint=bash $(ORG)/$(NAME):$(VERSION) -c "drweb-ctl --version" > tests/av_version.out
-	@echo "===> Dr.WEB BaseInfo"
+	@echo "===>  BaseInfo"
 	@docker run --init --rm --entrypoint=bash $(ORG)/$(NAME):$(VERSION) -c "/opt/drweb.com/bin/drweb-configd -d && drweb-ctl baseinfo" > tests/av_baseinfo.out
-	@echo "===> Dr.WEB License"
+	@echo "===>  License"
 	@docker run --init --rm --entrypoint=bash $(ORG)/$(NAME):$(VERSION) -c "/opt/drweb.com/bin/drweb-configd -d && drweb-ctl license" > tests/av_license.out
-	@echo "===> Dr.WEB EICAR Test"
+	@echo "===>  EICAR Test"
 	@docker run --init --rm --entrypoint=bash $(ORG)/$(NAME):$(VERSION) -c "/opt/drweb.com/bin/drweb-configd -d && drweb-ctl scan EICAR" > tests/av_eicar_scan.out || true
-	@echo "===> Dr.WEB $(MALWARE) Test"
+	@echo "===>  $(MALWARE) Test"
 	@docker run --init --rm --entrypoint=bash -v $(PWD):/malware $(ORG)/$(NAME):$(VERSION) -c "/opt/drweb.com/bin/drweb-configd -d && drweb-ctl scan $(MALWARE)" > tests/av_malware_scan.out || true
-	@echo "===> Dr.WEB $(NOT_MALWARE) Test"
+	@echo "===>  $(NOT_MALWARE) Test"
 	@docker run --init --rm --entrypoint=bash -v $(PWD):/malware $(ORG)/$(NAME):$(VERSION) -c "/opt/drweb.com/bin/drweb-configd -d && drweb-ctl scan $(NOT_MALWARE)" > tests/av_clean_scan.out || true
 
 update:

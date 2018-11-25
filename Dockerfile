@@ -11,7 +11,8 @@
 ####################################################
 # PLUGIN BUILDER
 ####################################################
-FROM ubuntu:xenial
+# FROM debian
+FROM ubuntu:bionic
 
 LABEL maintainer "https://github.com/blacktop"
 
@@ -27,10 +28,20 @@ RUN groupadd -r malice \
   && mkdir /malware \
   && chown -R malice:malice /malware
 
+RUN apt-get update \
+  && apt-get install -yq locales \
+  && locale-gen en_US.UTF-8
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
+ENV TERM=screen-256color
+
 # Install Kaspersky AV
 # ADD https://products.s.kaspersky-labs.com/multilanguage/i_gateways/proxyserver/linux/kav4proxy_5.5-86_i386.deb /tmp
 # COPY kav4fs_8.0.4-312_i386.deb /tmp
 COPY license.key /etc/kaspersky/license.key
+COPY config/docker.conf /etc/kaspersky/docker.conf
+
 RUN buildDeps='libreadline-dev:i386 \
   ca-certificates \
   libc6-dev:i386 \
@@ -44,33 +55,47 @@ RUN buildDeps='libreadline-dev:i386 \
   && set -x \
   && dpkg --add-architecture i386 \
   && apt-get update \
-  && apt-get install -yq $buildDeps libc6-i386 lib32z1 \
+  && apt-get install -yq $buildDeps libc6-i386 lib32z1 tree libcurl4-openssl-dev curlftpfs \
   && echo "===> Install Kaspersky..." \
-  && wget https://products.s.kaspersky-labs.com/multilanguage/file_servers/kavlinuxserver8.0/kav4fs_8.0.4-312_i386.deb -P /tmp \
+  && wget --progress=bar:force https://products.s.kaspersky-labs.com/multilanguage/file_servers/kavlinuxserver8.0/kav4fs_8.0.4-312_i386.deb -P /tmp \
   && DEBIAN_FRONTEND=noninteractive dpkg --force-architecture -i /tmp/kav4fs_8.0.4-312_i386.deb \
   && chmod a+s /opt/kaspersky/kav4fs/bin/kav4fs-setup.pl \
   && chmod a+s /opt/kaspersky/kav4fs/bin/kav4fs-control \
   && chmod 0777 /etc/kaspersky/license.key \
-  && /etc/init.d/kav4fs-supervisor start; sleep 10 && /opt/kaspersky/kav4fs/bin/kav4fs-control --install-active-key /etc/kaspersky/license.key \
+  && /opt/kaspersky/kav4fs/bin/kav4fs-control -L --validate-on-install /etc/kaspersky/license.key; sleep 3  \
+  && /opt/kaspersky/kav4fs/bin/kav4fs-control -L --install-on-install /etc/kaspersky/license.key; sleep 3  \
+  && echo "===> Setup Kaspersky..." \
+  && /opt/kaspersky/kav4fs/bin/kav4fs-setup.pl --auto-install=/etc/kaspersky/docker.conf; sleep 10 \
+  # && echo "===> Fix CVEs..." \
+  # && wget --progress=bar:force http://media.kaspersky.com/utilities/CorporateUtilities/klnagent_10.1.0-61_i386_deb.zip -P /tmp \
+  # && cd /tmp \
+  # && unzip klnagent_10.1.0-61_i386_deb.zip \
+  # && DEBIAN_FRONTEND=noninteractive dpkg --force-architecture -i klnagent_10.1.0-61_i386.deb \
   && echo "===> Clean up unnecessary files..." \
   # && apt-get purge -y --auto-remove $buildDeps \
-  && apt-get clean \
+  # && apt-get clean \
   && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives /tmp/* /var/tmp/*
 
-# Ensure ca-certificates is installed for elasticsearch to use https
-RUN apt-get update -qq && apt-get install -yq --no-install-recommends ca-certificates \
-  && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+# COPY config/odscan.ini /etc/kaspersky/odscan.ini
+# RUN \
+#   echo "===> Fix settings..." \
+#   && /etc/init.d/kav4fs-supervisor start; sleep 10 \
+#   && /opt/kaspersky/kav4fs/bin/kav4fs-control -T --file /etc/kaspersky/odscan.ini --set-settings 9
 
-COPY config/docker.conf /etc/kaspersky/docker.conf
-RUN /etc/init.d/kav4fs-supervisor start; sleep 10 \
-  && echo "===> Setup Kaspersky..." \
-  && /opt/kaspersky/kav4fs/bin/kav4fs-setup.pl --auto-install=/etc/kaspersky/docker.conf
+# RUN \
+#   echo "===> Updating AV..." \
+#   && /etc/init.d/kav4fs-supervisor restart; sleep 10 \
+#   && /opt/kaspersky/kav4fs/bin/kav4fs-control -T --start-task 6 --progress \
+#   && /opt/kaspersky/kav4fs/bin/kav4fs-control -T --get-stat Update
+# && mv /var/opt/kaspersky/kav4fs/update/avbases /var/opt/kaspersky/kav4fs/update/avbases-backup \
+# && mv /var/opt/kaspersky/kav4fs/update/update_temp_deleted_suddenly /var/opt/kaspersky/kav4fs/update/avbases
 
-RUN \
-  echo "===> Updating AV..." \
-  && /etc/init.d/kav4fs-supervisor start; sleep 10 \
-  && /opt/kaspersky/kav4fs/bin/kav4fs-control --start-task 6 \
-  && /opt/kaspersky/kav4fs/bin/kav4fs-control --progress 6
+# RUN \
+#   echo "===> Validate..." \
+#   && /etc/init.d/kav4fs-supervisor restart; sleep 10 \
+#   && /opt/kaspersky/kav4fs/bin/kav4fs-control -S --app-info \
+#   && /opt/kaspersky/kav4fs/bin/kav4fs-control -L --validate-key /etc/kaspersky/license.key \
+#   && /opt/kaspersky/kav4fs/bin/kav4fs-control -L --query-status
 
 # Add EICAR Test Virus File to malware folder
 ADD http://www.eicar.org/download/eicar.com.txt /malware/EICAR
