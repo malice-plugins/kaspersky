@@ -1,12 +1,12 @@
 ####################################################
 # GOLANG BUILDER
 ####################################################
-# FROM golang:1.11 as go_builder
+FROM golang:1.11 as go_builder
 
-# COPY . /go/src/github.com/malice-plugins/kaspersky
-# WORKDIR /go/src/github.com/malice-plugins/kaspersky
-# RUN go get -u github.com/golang/dep/cmd/dep && dep ensure
-# RUN go build -ldflags "-s -w -X main.Version=v$(cat VERSION) -X main.BuildTime=$(date -u +%Y%m%d)" -o /bin/avscan
+COPY . /go/src/github.com/malice-plugins/kaspersky
+WORKDIR /go/src/github.com/malice-plugins/kaspersky
+RUN go get -u github.com/golang/dep/cmd/dep && dep ensure
+RUN go build -ldflags "-s -w -X main.Version=v$(cat VERSION) -X main.BuildTime=$(date -u +%Y%m%d)" -o /bin/avscan
 
 ####################################################
 # PLUGIN BUILDER
@@ -100,12 +100,12 @@ RUN buildDeps='libreadline-dev:i386 \
 # Add EICAR Test Virus File to malware folder
 ADD http://www.eicar.org/download/eicar.com.txt /malware/EICAR
 
-# COPY --from=go_builder /bin/avscan /bin/avscan
+COPY --from=go_builder /bin/avscan /bin/avscan
 
 WORKDIR /malware
 
-# ENTRYPOINT ["/bin/avscan"]
-# CMD ["--help"]
+ENTRYPOINT ["/bin/avscan"]
+CMD ["--help"]
 
 ####################################################
 # CMD /etc/init.d/kav4fs-supervisor start && /opt/kaspersky/kav4fs/bin/kav4fs-control --scan-file /malware/EICAR

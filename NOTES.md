@@ -31,4 +31,4 @@ https://my.kaspersky.com/MyLicenses#allx
 
 ## Ideas
 
-- [ ] Is it failing because of locale? Is it timing out when pulling the updates because it isn't using USA?
+- [x] Is it failing because of locale? Is it timing out when pulling the updates because it isn't using USA?
