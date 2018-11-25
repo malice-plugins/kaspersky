@@ -63,13 +63,14 @@ RUN apt-get update -qq && apt-get install -yq --no-install-recommends ca-certifi
 
 COPY config/docker.conf /etc/kaspersky/docker.conf
 RUN /etc/init.d/kav4fs-supervisor start; sleep 10 \
+  && echo "===> Setup Kaspersky..." \
   && /opt/kaspersky/kav4fs/bin/kav4fs-setup.pl --auto-install=/etc/kaspersky/docker.conf
 
-# RUN \
-#   echo "===> Updating AV..." \
-#   && /etc/init.d/kav4fs-supervisor start; sleep 10 \
-#   && /opt/kaspersky/kav4fs/bin/kav4fs-control --start-task 6 \
-#   && /opt/kaspersky/kav4fs/bin/kav4fs-control --progress 6
+RUN \
+  echo "===> Updating AV..." \
+  && /etc/init.d/kav4fs-supervisor start; sleep 10 \
+  && /opt/kaspersky/kav4fs/bin/kav4fs-control --start-task 6 \
+  && /opt/kaspersky/kav4fs/bin/kav4fs-control --progress 6
 
 # Add EICAR Test Virus File to malware folder
 ADD http://www.eicar.org/download/eicar.com.txt /malware/EICAR
