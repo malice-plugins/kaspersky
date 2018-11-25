@@ -53,19 +53,20 @@ go-test:
 	go get
 	go test -v
 
-avtest:
+SPVR=/etc/init.d/kav4fs-supervisor
+CTRL=/opt/kaspersky/kav4fs/bin/kav4fs-control
+VERIFY=$(CTRL) -S --app-info
+avtest: malware
 	@echo "===>  Version"
-	@docker run --init --rm --entrypoint=bash $(ORG)/$(NAME):$(VERSION) -c "drweb-ctl --version" > tests/av_version.out
-	@echo "===>  BaseInfo"
-	@docker run --init --rm --entrypoint=bash $(ORG)/$(NAME):$(VERSION) -c "/opt/drweb.com/bin/drweb-configd -d && drweb-ctl baseinfo" > tests/av_baseinfo.out
+	@docker run --init --rm --entrypoint=bash $(ORG)/$(NAME):$(VERSION) -c "$(SPVR) start;sleep 3 && $(VERIFY)" > tests/av_version.out
 	@echo "===>  License"
-	@docker run --init --rm --entrypoint=bash $(ORG)/$(NAME):$(VERSION) -c "/opt/drweb.com/bin/drweb-configd -d && drweb-ctl license" > tests/av_license.out
+	@docker run --init --rm --entrypoint=bash $(ORG)/$(NAME):$(VERSION) -c "$(SPVR) start;sleep 3 && $(CTRL) -L --query-status" > tests/av_license.out
 	@echo "===>  EICAR Test"
-	@docker run --init --rm --entrypoint=bash $(ORG)/$(NAME):$(VERSION) -c "/opt/drweb.com/bin/drweb-configd -d && drweb-ctl scan EICAR" > tests/av_eicar_scan.out || true
+	@docker run --init -it --rm --entrypoint=bash -v $(PWD)/tests:/malware/tests $(ORG)/$(NAME):$(VERSION) -c "MALWARE=/malware/EICAR tests/test_malware.sh" > tests/av_eicar_scan.out || true
 	@echo "===>  $(MALWARE) Test"
-	@docker run --init --rm --entrypoint=bash -v $(PWD):/malware $(ORG)/$(NAME):$(VERSION) -c "/opt/drweb.com/bin/drweb-configd -d && drweb-ctl scan $(MALWARE)" > tests/av_malware_scan.out || true
+	@docker run --init -it --rm --entrypoint=bash -v $(PWD)/tests:/malware/tests $(ORG)/$(NAME):$(VERSION) -c "MALWARE=$(MALWARE) tests/test_malware.sh" > tests/av_malware_scan.out || true
 	@echo "===>  $(NOT_MALWARE) Test"
-	@docker run --init --rm --entrypoint=bash -v $(PWD):/malware $(ORG)/$(NAME):$(VERSION) -c "/opt/drweb.com/bin/drweb-configd -d && drweb-ctl scan $(NOT_MALWARE)" > tests/av_clean_scan.out || true
+	@docker run --init -it --rm --entrypoint=bash -v $(PWD)/tests:/malware/tests $(ORG)/$(NAME):$(VERSION) -c "MALWARE=$(NOT_MALWARE) tests/test_malware.sh" > tests/av_clean_scan.out || true
 
 update:
 	@docker run --init --rm $(ORG)/$(NAME):$(VERSION) -V update
@@ -134,7 +135,7 @@ ci-build:
 
 ci-size: ci-build
 	@echo "===> Getting artifact sizes from CircleCI"
-	@cd .circleci; rm size nsrl bloom || true
+	@cd .circleci; rm size || true
 	@http https://circleci.com/api/v1.1/project/github/${REPO}/$(shell cat .circleci/build_num)/artifacts${CIRCLE_TOKEN} | jq -r ".[] | .url" | xargs wget -q -P .circleci
 
 clean:

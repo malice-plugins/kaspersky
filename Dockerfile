@@ -55,7 +55,7 @@ RUN buildDeps='libreadline-dev:i386 \
   && set -x \
   && dpkg --add-architecture i386 \
   && apt-get update \
-  && apt-get install -yq $buildDeps libc6-i386 lib32z1 tree libcurl4-openssl-dev curlftpfs \
+  && apt-get install -yq $buildDeps libc6-i386 libcurl4-openssl-dev curlftpfs \
   && echo "===> Install Kaspersky..." \
   && wget --progress=bar:force https://products.s.kaspersky-labs.com/multilanguage/file_servers/kavlinuxserver8.0/kav4fs_8.0.4-312_i386.deb -P /tmp \
   && DEBIAN_FRONTEND=noninteractive dpkg --force-architecture -i /tmp/kav4fs_8.0.4-312_i386.deb \
@@ -72,8 +72,8 @@ RUN buildDeps='libreadline-dev:i386 \
   # && unzip klnagent_10.1.0-61_i386_deb.zip \
   # && DEBIAN_FRONTEND=noninteractive dpkg --force-architecture -i klnagent_10.1.0-61_i386.deb \
   && echo "===> Clean up unnecessary files..." \
-  # && apt-get purge -y --auto-remove $buildDeps \
-  # && apt-get clean \
+  && apt-get purge -y --auto-remove $buildDeps \
+  && apt-get clean \
   && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives /tmp/* /var/tmp/*
 
 # COPY config/odscan.ini /etc/kaspersky/odscan.ini
