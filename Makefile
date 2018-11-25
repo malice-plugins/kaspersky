@@ -7,7 +7,8 @@ KASPERSKY_KEY?=$(shell cat kaspersky.key)
 all: build size test avtest gotest
 
 build:
-	docker build --build-arg KASPERSKY_KEY=${KASPERSKY_KEY} -t $(ORG)/$(NAME):$(VERSION) .
+	docker build -t $(ORG)/$(NAME):$(VERSION) .
+	# docker build --build-arg KASPERSKY_KEY=${KASPERSKY_KEY} -t $(ORG)/$(NAME):$(VERSION) .
 
 base:
 	docker build -f Dockerfile.base -t $(ORG)/$(NAME):base .
