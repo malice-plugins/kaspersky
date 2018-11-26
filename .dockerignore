@@ -7,6 +7,8 @@
 docs*
 vendor*
 tests*
+install*
+.vagrant*
 
 *.md
 *.md.bu
