@@ -14,7 +14,7 @@ I just need to finish the golang wrapper (it will be a slow AV though :snail:)
 
 ### Dependencies
 
-- [ubuntu:xenial (_79.2 MB_\)](https://hub.docker.com/_/debian/)
+- [ubuntu:bionic (_84.1MB_\)](https://hub.docker.com/_/debian/)
 
 ## Installation
 

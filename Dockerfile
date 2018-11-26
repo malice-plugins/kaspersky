@@ -11,7 +11,6 @@ RUN go build -ldflags "-s -w -X main.Version=v$(cat VERSION) -X main.BuildTime=$
 ####################################################
 # PLUGIN BUILDER
 ####################################################
-# FROM debian
 FROM ubuntu:bionic
 
 LABEL maintainer "https://github.com/blacktop"
