@@ -67,7 +67,7 @@ type ResultsData struct {
 func assert(err error) {
 	if err != nil {
 		// skip exit code 13 (which means a virus was found)
-		if err.Error() != "exit status 13" {
+		if err.Error() != "exit status 1" {
 			log.WithFields(log.Fields{
 				"plugin":   name,
 				"category": category,
@@ -86,20 +86,22 @@ func AvScan(timeout int) Kaspersky {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
 	defer cancel()
 
-	expired, err := didLicenseExpire(ctx)
-	assert(err)
-	if expired {
-		err = updateLicense(ctx)
-		assert(err)
-	}
+	// TODO: RE ENABLE THIS
+	// expired, err := didLicenseExpire(ctx)
+	// assert(err)
+	// if expired {
+	// 	err = updateLicense(ctx)
+	// 	assert(err)
+	// }
 
 	// kaspersky needs to have the daemon started first
-	configd := exec.CommandContext(ctx, "/etc/init.d/kav4fs-supervisor start")
-	_, err = configd.Output()
+	log.Debug("/etc/init.d/kav4fs-supervisor start")
+	configd := exec.CommandContext(ctx, "/etc/init.d/kav4fs-supervisor", "start")
+	_, err := configd.Output()
 	assert(err)
 	defer configd.Process.Kill()
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(10 * time.Second)
 
 	log.Debug("running kav4fs-control --scan-file")
 	output, sErr = utils.RunCommand(ctx, "/opt/kaspersky/kav4fs/bin/kav4fs-control", "--scan-file", path)
@@ -110,16 +112,16 @@ func AvScan(timeout int) Kaspersky {
 		output, sErr = utils.RunCommand(ctx, "/opt/kaspersky/kav4fs/bin/kav4fs-control", "--scan-file", path)
 	}
 
-	virusesInfo, err := utils.RunCommand(ctx, "/opt/kaspersky/kav4fs/bin/kav4fs-control", "--top-viruses")
+	virusInfo, err := utils.RunCommand(ctx, "/opt/kaspersky/kav4fs/bin/kav4fs-control", "--top-viruses", "1")
 	assert(err)
 
-	results, err := ParseKasperskyOutput(output, virusesInfo, sErr)
+	results, err := ParseKasperskyOutput(output, virusInfo, sErr)
 
 	return Kaspersky{Results: results}
 }
 
 // ParseKasperskyOutput convert kaspersky output into ResultsData struct
-func ParseKasperskyOutput(kasperskyOut, baseInfo string, kasperskyErr error) (ResultsData, error) {
+func ParseKasperskyOutput(kasperskyOut, virusInfo string, kasperskyErr error) (ResultsData, error) {
 
 	log.WithFields(log.Fields{
 		"plugin":   name,
@@ -127,44 +129,37 @@ func ParseKasperskyOutput(kasperskyOut, baseInfo string, kasperskyErr error) (Re
 		"path":     path,
 	}).Debug("Kaspersky Output: ", kasperskyOut)
 
+	log.WithFields(log.Fields{
+		"plugin":   name,
+		"category": category,
+		"path":     path,
+	}).Debug("Kaspersky Virus Info: ", virusInfo)
+
 	if kasperskyErr != nil {
-		if kasperskyErr.Error() == "exit status 119" {
-			return ResultsData{Error: "ScanEngine is not available"}, kasperskyErr
-		}
+		// if kasperskyErr.Error() == "exit status 119" {
+		// 	return ResultsData{Error: "ScanEngine is not available"}, kasperskyErr
+		// }
 		return ResultsData{Error: kasperskyErr.Error()}, kasperskyErr
 	}
 
 	kaspersky := ResultsData{
 		Infected: false,
 		Engine:   getKasperskyVersion(),
+		Database: getKasperskyDatabase(),
 		Updated:  getUpdatedDate(),
 	}
 
 	for _, line := range strings.Split(kasperskyOut, "\n") {
 		if len(line) != 0 {
-			if strings.Contains(line, "- Ok") {
-				break
-			}
-			if strings.Contains(line, "infected with") {
+			if strings.Contains(line, "Threats found:       1") {
 				kaspersky.Infected = true
-				kaspersky.Result = strings.TrimSpace(strings.TrimPrefix(line, path+" - infected with"))
-			}
-		}
-	}
-
-	log.WithFields(log.Fields{
-		"plugin":   name,
-		"category": category,
-		"path":     path,
-	}).Debug("Kaspersky Base Info: ", baseInfo)
-
-	for _, line := range strings.Split(baseInfo, "\n") {
-		if len(line) != 0 {
-			if strings.Contains(line, "Core engine:") {
-				kaspersky.Engine = strings.TrimSpace(strings.TrimPrefix(line, "Core engine:"))
-			}
-			if strings.Contains(line, "Virus base records:") {
-				kaspersky.Database = strings.TrimSpace(strings.TrimPrefix(line, "Virus base records:"))
+				for _, line := range strings.Split(virusInfo, "\n") {
+					if len(line) != 0 {
+						if strings.Contains(line, "Virus name:") {
+							kaspersky.Result = strings.TrimSpace(strings.TrimPrefix(line, "Virus name:"))
+						}
+					}
+				}
 			}
 		}
 	}
@@ -174,11 +169,34 @@ func ParseKasperskyOutput(kasperskyOut, baseInfo string, kasperskyErr error) (Re
 
 func getKasperskyVersion() string {
 
-	versionOut, err := utils.RunCommand(nil, "/opt/kaspersky/kav4fs/bin/kav4fs-control", "--version")
+	versionOut, err := utils.RunCommand(nil, "/opt/kaspersky/kav4fs/bin/kav4fs-control", "-S", "--app-info")
 	assert(err)
 
 	log.Debug("Kaspersky Version: ", versionOut)
-	return strings.TrimSpace(strings.TrimPrefix(versionOut, "kav4fs-control "))
+	for _, line := range strings.Split(versionOut, "\n") {
+		if len(line) != 0 {
+			if strings.Contains(line, "Version:") {
+				return strings.TrimSpace(strings.TrimPrefix(line, "Version:"))
+			}
+		}
+	}
+	return "error"
+}
+
+func getKasperskyDatabase() string {
+
+	databaseOut, err := utils.RunCommand(nil, "/opt/kaspersky/kav4fs/bin/kav4fs-control", "--get-stat", "Update")
+	assert(err)
+
+	log.Debug("Kaspersky Database: ", databaseOut)
+	for _, line := range strings.Split(databaseOut, "\n") {
+		if len(line) != 0 {
+			if strings.Contains(line, "Current AV databases records:") {
+				return strings.TrimSpace(strings.TrimPrefix(line, "Current AV databases records:"))
+			}
+		}
+	}
+	return "error"
 }
 
 func parseUpdatedDate(date string) string {
@@ -198,7 +216,7 @@ func getUpdatedDate() string {
 
 func updateAV(ctx context.Context) error {
 	// kaspersky needs to have the daemon started first
-	configd := exec.Command("/etc/init.d/kav4fs-supervisor start")
+	configd := exec.Command("/etc/init.d/kav4fs-supervisor", "start")
 	_, err := configd.Output()
 	assert(err)
 	defer configd.Process.Kill()
@@ -214,7 +232,7 @@ func updateAV(ctx context.Context) error {
 
 func updateLicense(ctx context.Context) error {
 	// kaspersky needs to have the daemon started first
-	configd := exec.CommandContext(ctx, "/etc/init.d/kav4fs-supervisor start")
+	configd := exec.CommandContext(ctx, "/etc/init.d/kav4fs-supervisor", "start")
 	_, err := configd.Output()
 	if err != nil {
 		return err
@@ -238,7 +256,7 @@ func updateLicense(ctx context.Context) error {
 
 func didLicenseExpire(ctx context.Context) (bool, error) {
 	// kaspersky needs to have the daemon started first
-	configd := exec.CommandContext(ctx, "/etc/init.d/kav4fs-supervisor start")
+	configd := exec.CommandContext(ctx, "/etc/init.d/kav4fs-supervisor", "start")
 	_, err := configd.Output()
 	if err != nil {
 		return false, err

@@ -1,7 +1,7 @@
 # Create a Zoner scan micro-service :new: :construction:
 
 ```bash
-$ docker run -d -p 3993:3993 malice/zoner web
+$ docker run -d -p 3993:3993 malice/kaspersky web
 
 INFO[0000] web service listening on port :3993
 ```
@@ -21,11 +21,12 @@ Content-Type: application/json; charset=UTF-8
 Date: Sat, 21 Jan 2017 05:39:29 GMT
 
 {
-  "zoner": {
+  "kaspersky": {
     "infected": true,
-    "result": "EICAR.Test.File-NoVirus",
-    "engine": "1979756",
-    "updated": "20170707"
+    "result": "EICAR-Test-File",
+    "engine": "8.0.4.312",
+    "database": "9282732",
+    "updated": "20181126"
   }
 }
 ```

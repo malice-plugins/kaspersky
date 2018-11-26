@@ -1,4 +1,4 @@
-# malice-kaspersky [WIP]
+# malice-kaspersky
 
 [![Circle CI](https://circleci.com/gh/malice-plugins/kaspersky.png?style=shield)](https://circleci.com/gh/malice-plugins/kaspersky) [![License](http://img.shields.io/:license-mit-blue.svg)](http://doge.mit-license.org) [![Docker Stars](https://img.shields.io/docker/stars/malice/kaspersky.svg)](https://store.docker.com/community/images/malice/kaspersky) [![Docker Pulls](https://img.shields.io/docker/pulls/malice/kaspersky.svg)](https://store.docker.com/community/images/malice/kaspersky) [![Docker Image](https://img.shields.io/badge/docker%20image-735MB-blue.svg)](https://store.docker.com/community/images/malice/kaspersky)
 
@@ -7,10 +7,6 @@ Malice Kaspersky Antivirus Plugin
 > This repository contains a **Dockerfile** of [kaspersky](https://www.kaspersky.com/).
 
 ---
-
-## :warning: STATUS :warning:
-
-I just need to finish the golang wrapper (it will be a slow AV though :snail:)
 
 ### Dependencies
 
@@ -30,7 +26,31 @@ docker run --rm malice/kaspersky EICAR
 ### Or link your own malware folder:
 
 ```bash
+Usage: kaspersky [OPTIONS] COMMAND [arg...]
 
+Malice Kaspersky AntiVirus Plugin
+
+Version: v0.1.0, BuildTime: 20181126
+
+Author:
+  blacktop - <https://github.com/blacktop>
+
+Options:
+  --verbose, -V          verbose output
+  --elasticsearch value  elasticsearch url for Malice to store results [$MALICE_ELASTICSEARCH_URL]
+  --table, -t            output as Markdown table
+  --callback, -c         POST results back to Malice webhook [$MALICE_ENDPOINT]
+  --proxy, -x            proxy settings for Malice webhook endpoint [$MALICE_PROXY]
+  --timeout value        malice plugin timeout (in seconds) (default: 120) [$MALICE_TIMEOUT]
+  --help, -h             show help
+  --version, -v          print the version
+
+Commands:
+  update  Update virus definitions
+  web     Create a Kaspersky scan web service
+  help    Shows a list of commands or help for one command
+
+Run 'kaspersky COMMAND --help' for more information on a command.
 ```
 
 ## Sample Output
@@ -39,7 +59,13 @@ docker run --rm malice/kaspersky EICAR
 
 ```json
 {
-  "kaspersky": {}
+  "kaspersky": {
+    "infected": true,
+    "result": "EICAR-Test-File",
+    "engine": "8.0.4.312",
+    "database": "9282732",
+    "updated": "20181126"
+  }
 }
 ```
 
@@ -48,6 +74,10 @@ docker run --rm malice/kaspersky EICAR
 ---
 
 #### Kaspersky
+
+| Infected |     Result      |  Engine   | Updated  |
+| :------: | :-------------: | :-------: | :------: |
+|   true   | EICAR-Test-File | 8.0.4.312 | 20181126 |
 
 ---
 

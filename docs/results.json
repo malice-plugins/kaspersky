@@ -1,0 +1,9 @@
+{
+  "kaspersky": {
+    "infected": true,
+    "result": "Backdoor.Win32.Lecna.ab",
+    "engine": "8.0.4.312",
+    "database": "9282732",
+    "updated": "20181126"
+  }
+}

@@ -6,5 +6,5 @@ $ docker run -d --name elastic \
                 -p 9200:9200 \
                 -v malice:/usr/share/elasticsearch/data \
                  blacktop/elasticsearch
-$ docker run --rm -v /path/to/malware:/malware:ro --link elastic malice/zoner -t FILE
+$ docker run --rm -v /path/to/malware:/malware:ro --link elastic malice/kaspersky -t FILE
 ```

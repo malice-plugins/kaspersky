@@ -2,5 +2,5 @@
 
 ```bash
 $ docker run -v `pwd`:/malware:ro --rm \
-             -e MALICE_ENDPOINT="https://malice.io:31337/scan/file" malice/zoner --callback evil.malware
+             -e MALICE_ENDPOINT="https://malice.io:31337/scan/file" malice/kaspersky --callback evil.malware
 ```

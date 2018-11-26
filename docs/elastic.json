@@ -1,21 +1,58 @@
 {
-  "error": {
-    "root_cause": [
-      {
-        "type": "index_not_found_exception",
-        "reason": "no such index",
-        "resource.type": "index_or_alias",
-        "resource.id": "malice",
-        "index_uuid": "_na_",
-        "index": "malice"
-      }
-    ],
-    "type": "index_not_found_exception",
-    "reason": "no such index",
-    "resource.type": "index_or_alias",
-    "resource.id": "malice",
-    "index_uuid": "_na_",
-    "index": "malice"
+  "took": 122,
+  "timed_out": false,
+  "_shards": {
+    "total": 1,
+    "successful": 1,
+    "skipped": 0,
+    "failed": 0
   },
-  "status": 404
+  "hits": {
+    "total": 2,
+    "max_score": 1,
+    "hits": [
+      {
+        "_index": "malice",
+        "_type": "samples",
+        "_id": "1IOgTWcBY7A-jnR8F35O",
+        "_score": 1,
+        "_source": {
+          "plugins": {
+            "av": {
+              "kaspersky": {
+                "Database": "9282732",
+                "Engine": "8.0.4.312",
+                "Infected": true,
+                "Result": "Backdoor.Win32.Lecna.ab",
+                "Updated": "20181126",
+                "markdown": "#### Kaspersky\n| Infected      | Result      | Engine      | Updated      |\n|:-------------:|:-----------:|:-----------:|:------------:|\n| true | Backdoor.Win32.Lecna.ab | 8.0.4.312 | 20181126 |\n"
+              }
+            }
+          },
+          "scan_date": "2018-11-26T01:26:36.5952227Z"
+        }
+      },
+      {
+        "_index": "malice",
+        "_type": "samples",
+        "_id": "1YOgTWcBY7A-jnR8fH75",
+        "_score": 1,
+        "_source": {
+          "plugins": {
+            "av": {
+              "kaspersky": {
+                "Database": "9282732",
+                "Engine": "8.0.4.312",
+                "Infected": false,
+                "Result": "",
+                "Updated": "20181126",
+                "markdown": "#### Kaspersky\n| Infected      | Result      | Engine      | Updated      |\n|:-------------:|:-----------:|:-----------:|:------------:|\n| false |  | 8.0.4.312 | 20181126 |\n"
+              }
+            }
+          },
+          "scan_date": "2018-11-26T01:27:02.6473051Z"
+        }
+      }
+    ]
+  }
 }
