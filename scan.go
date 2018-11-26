@@ -86,18 +86,17 @@ func AvScan(timeout int) Kaspersky {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
 	defer cancel()
 
-	// TODO: RE ENABLE THIS
-	// expired, err := didLicenseExpire(ctx)
-	// assert(err)
-	// if expired {
-	// 	err = updateLicense(ctx)
-	// 	assert(err)
-	// }
+	expired, err := didLicenseExpire(ctx)
+	assert(err)
+	if expired {
+		err = updateLicense(ctx)
+		assert(err)
+	}
 
 	// kaspersky needs to have the daemon started first
 	log.Debug("/etc/init.d/kav4fs-supervisor start")
 	configd := exec.CommandContext(ctx, "/etc/init.d/kav4fs-supervisor", "start")
-	_, err := configd.Output()
+	_, err = configd.Output()
 	assert(err)
 	defer configd.Process.Kill()
 
@@ -270,14 +269,12 @@ func didLicenseExpire(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	// TODO: FIX THIS !!!!!!!!
-	if strings.Contains(string(lOut), "No license") {
-		log.Debug("no licence found or licence has been invalidated")
-		return true, nil
-	}
-
-	if strings.Contains(string(lOut), "expires") {
-		return false, nil
+	for _, line := range strings.Split(string(lOut), "\n") {
+		if len(line) != 0 {
+			if strings.Contains(line, "License status:") {
+				return strings.Contains(line, "Valid"), nil
+			}
+		}
 	}
 
 	log.WithFields(log.Fields{"output": string(lOut)}).Debug("licence expired")

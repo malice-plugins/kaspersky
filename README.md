@@ -94,7 +94,7 @@ Find a bug? Want more features? Find something missing in the documentation? Let
 
 ## TODO
 
-- [ ] add licence expiration detection
+- [x] add licence expiration detection
 - [ ] expose WEB ui
 
 ## CHANGELOG
