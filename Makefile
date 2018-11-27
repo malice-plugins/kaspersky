@@ -4,7 +4,7 @@ NAME=kaspersky
 CATEGORY=av
 VERSION=$(shell cat VERSION)
 
-KASPERSKY_KEY?=$(shell cat kaspersky.key)
+KASPERSKY_KEY?=$(shell cat license.key | base64)
 
 MALWARE=tests/malware
 NOT_MALWARE=tests/not.malware
@@ -13,11 +13,11 @@ all: build size tag test_all
 
 .PHONY: build
 build:
-	docker build -t $(ORG)/$(NAME):$(VERSION) .
+	docker build --build-arg KASPERSKY_KEY=${KASPERSKY_KEY} -t $(ORG)/$(NAME):$(VERSION) .
 
 .PHONY: build_no_cache
 build_no_cache:
-	docker build --no-cache -t $(ORG)/$(NAME):$(VERSION) .
+	docker build --no-cache --build-arg KASPERSKY_KEY=${KASPERSKY_KEY} -t $(ORG)/$(NAME):$(VERSION) .
 
 .PHONY: build_w_key
 build_w_key:

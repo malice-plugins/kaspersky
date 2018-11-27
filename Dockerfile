@@ -27,30 +27,30 @@ RUN groupadd -r malice \
   && mkdir /malware \
   && chown -R malice:malice /malware
 
+# Fix locale
 RUN apt-get update \
   && apt-get install -yq locales \
-  && locale-gen en_US.UTF-8
+  && locale-gen en_US.UTF-8 \
+  && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 ENV TERM=screen-256color
 
-# Install Kaspersky AV
-# ADD https://products.s.kaspersky-labs.com/multilanguage/i_gateways/proxyserver/linux/kav4proxy_5.5-86_i386.deb /tmp
-# COPY kav4fs_8.0.4-312_i386.deb /tmp
-COPY license.key /etc/kaspersky/license.key
-COPY config/docker.conf /etc/kaspersky/docker.conf
+ARG KASPERSKY_KEY
+ENV KASPERSKY_KEY=$KASPERSKY_KEY
 
-RUN buildDeps='libreadline-dev:i386 \
-  ca-certificates \
-  libc6-dev:i386 \
-  build-essential \
-  gcc-multilib \
-  cabextract \
-  mercurial \
-  git-core \
-  unzip \
-  wget' \
+# Install Kaspersky License Key
+RUN if [ "x$KASPERSKY_KEY" != "x" ]; then \
+  echo "===> Adding Avira License Key..."; \
+  mkdir -p /etc/kaspersky/; \
+  echo -n "$KASPERSKY_KEY" | base64 -d > /etc/kaspersky/license.key ; \
+  fi
+
+COPY config/docker.conf /etc/kaspersky/docker.conf
+# Install Kaspersky AV
+RUN buildDeps='ca-certificates libc6-dev:i386 unzip wget' \
   && set -x \
   && dpkg --add-architecture i386 \
   && apt-get update \
@@ -74,6 +74,10 @@ RUN buildDeps='libreadline-dev:i386 \
   && apt-get purge -y --auto-remove $buildDeps \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives /tmp/* /var/tmp/*
+
+# Ensure ca-certificates is installed for elasticsearch to use https
+RUN apt-get update -qq && apt-get install -yq --no-install-recommends ca-certificates \
+  && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # COPY config/odscan.ini /etc/kaspersky/odscan.ini
 # RUN \
