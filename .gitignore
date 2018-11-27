@@ -18,3 +18,4 @@
 
 tests/not.malware
 tests/malware
+*.key
