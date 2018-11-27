@@ -22,6 +22,7 @@ LABEL malice.plugin.docker.engine="*"
 
 # Create a malice user and group first so the IDs get set the same way, even as
 # the rest of this may change over time.
+RUN mkdir -p /opt/malice
 RUN groupadd -r malice \
   && useradd --no-log-init -r -g malice malice \
   && mkdir /malware \
