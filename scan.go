@@ -215,14 +215,16 @@ func getUpdatedDate() string {
 
 func updateAV(ctx context.Context) error {
 	// kaspersky needs to have the daemon started first
-	configd := exec.Command("/etc/init.d/kav4fs-supervisor", "start")
+	configd := exec.CommandContext(ctx, "/etc/init.d/kav4fs-supervisor", "start")
 	_, err := configd.Output()
-	assert(err)
+	if err != nil {
+		return err
+	}
 	defer configd.Process.Kill()
+	time.Sleep(20 * time.Second)
 
 	fmt.Println("Updating Kaspersky...")
-	fmt.Println(utils.RunCommand(ctx, "/opt/kaspersky/kav4fs/bin/kav4fs-control", "--start-task", "6"))
-	fmt.Println(utils.RunCommand(ctx, "/opt/kaspersky/kav4fs/bin/kav4fs-control", "--progress", "6"))
+	fmt.Println(utils.RunCommand(ctx, "/opt/kaspersky/kav4fs/bin/kav4fs-control", "-T", "--start-task", "6", "--progress"))
 	// Update UPDATED file
 	t := time.Now().Format("20060102")
 	err = ioutil.WriteFile("/opt/malice/UPDATED", []byte(t), 0644)
@@ -237,7 +239,7 @@ func updateLicense(ctx context.Context) error {
 		return err
 	}
 	defer configd.Process.Kill()
-	time.Sleep(1 * time.Second)
+	time.Sleep(10 * time.Second)
 
 	// check for exec context timeout
 	if ctx.Err() == context.DeadlineExceeded {
