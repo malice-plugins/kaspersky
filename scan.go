@@ -215,7 +215,7 @@ func getUpdatedDate() string {
 
 func updateAV(ctx context.Context) error {
 	// kaspersky needs to have the daemon started first
-	configd := exec.CommandContext(ctx, "/etc/init.d/kav4fs-supervisor", "start")
+	configd := exec.Command("/etc/init.d/kav4fs-supervisor", "start")
 	_, err := configd.Output()
 	if err != nil {
 		return err
