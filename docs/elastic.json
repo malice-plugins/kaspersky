@@ -1,5 +1,5 @@
 {
-  "took": 153,
+  "took": 47,
   "timed_out": false,
   "_shards": {
     "total": 1,
@@ -14,43 +14,43 @@
       {
         "_index": "malice",
         "_type": "samples",
-        "_id": "Awv6UmcB4oZm7pWaGaVN",
+        "_id": "xL9vbWcBtZpcpe6KIzos",
         "_score": 1,
         "_source": {
           "plugins": {
             "av": {
               "kaspersky": {
-                "Database": "9288211",
+                "Database": "9337430",
                 "Engine": "8.0.4.312",
                 "Infected": true,
                 "Result": "Backdoor.Win32.Lecna.ab",
-                "Updated": "20181127",
-                "markdown": "#### Kaspersky\n| Infected      | Result      | Engine      | Updated      |\n|:-------------:|:-----------:|:-----------:|:------------:|\n| true | Backdoor.Win32.Lecna.ab | 8.0.4.312 | 20181127 |\n"
+                "Updated": "20181202",
+                "markdown": "#### Kaspersky\n| Infected      | Result      | Engine      | Updated      |\n|:-------------:|:-----------:|:-----------:|:------------:|\n| true | Backdoor.Win32.Lecna.ab | 8.0.4.312 | 20181202 |\n"
               }
             }
           },
-          "scan_date": "2018-11-27T02:23:01.4244018Z"
+          "scan_date": "2018-12-02T05:40:59.301177652Z"
         }
       },
       {
         "_index": "malice",
         "_type": "samples",
-        "_id": "BAv6UmcB4oZm7pWahaXe",
+        "_id": "xb9vbWcBtZpcpe6KjTrs",
         "_score": 1,
         "_source": {
           "plugins": {
             "av": {
               "kaspersky": {
-                "Database": "9288211",
+                "Database": "9337430",
                 "Engine": "8.0.4.312",
                 "Infected": false,
                 "Result": "",
-                "Updated": "20181127",
-                "markdown": "#### Kaspersky\n| Infected      | Result      | Engine      | Updated      |\n|:-------------:|:-----------:|:-----------:|:------------:|\n| false |  | 8.0.4.312 | 20181127 |\n"
+                "Updated": "20181202",
+                "markdown": "#### Kaspersky\n| Infected      | Result      | Engine      | Updated      |\n|:-------------:|:-----------:|:-----------:|:------------:|\n| false |  | 8.0.4.312 | 20181202 |\n"
               }
             }
           },
-          "scan_date": "2018-11-27T02:23:29.2444797Z"
+          "scan_date": "2018-12-02T05:41:26.634092562Z"
         }
       }
     ]
