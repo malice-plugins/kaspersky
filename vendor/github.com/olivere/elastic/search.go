@@ -247,9 +247,37 @@ func (s *SearchService) SortWithInfo(info SortInfo) *SearchService {
 	return s
 }
 
-// SortBy	adds a sort order.
+// SortBy adds a sort order.
 func (s *SearchService) SortBy(sorter ...Sorter) *SearchService {
 	s.searchSource = s.searchSource.SortBy(sorter...)
+	return s
+}
+
+// DocvalueField adds a single field to load from the field data cache
+// and return as part of the search.
+func (s *SearchService) DocvalueField(docvalueField string) *SearchService {
+	s.searchSource = s.searchSource.DocvalueField(docvalueField)
+	return s
+}
+
+// DocvalueFieldWithFormat adds a single field to load from the field data cache
+// and return as part of the search.
+func (s *SearchService) DocvalueFieldWithFormat(docvalueField DocvalueField) *SearchService {
+	s.searchSource = s.searchSource.DocvalueFieldWithFormat(docvalueField)
+	return s
+}
+
+// DocvalueFields adds one or more fields to load from the field data cache
+// and return as part of the search.
+func (s *SearchService) DocvalueFields(docvalueFields ...string) *SearchService {
+	s.searchSource = s.searchSource.DocvalueFields(docvalueFields...)
+	return s
+}
+
+// DocvalueFieldsWithFormat adds one or more fields to load from the field data cache
+// and return as part of the search.
+func (s *SearchService) DocvalueFieldsWithFormat(docvalueFields ...DocvalueField) *SearchService {
+	s.searchSource = s.searchSource.DocvalueFieldsWithFormat(docvalueFields...)
 	return s
 }
 
@@ -435,7 +463,7 @@ type SearchResult struct {
 	TimedOut     bool           `json:"timed_out,omitempty"`    // true if the search timed out
 	Error        *ErrorDetails  `json:"error,omitempty"`        // only used in MultiGet
 	Profile      *SearchProfile `json:"profile,omitempty"`      // profiling results, if optional Profile API was active for this search
-	Shards       *shardsInfo    `json:"_shards,omitempty"`      // shard information
+	Shards       *ShardsInfo    `json:"_shards,omitempty"`      // shard information
 }
 
 // TotalHits is a convenience function to return the number of hits for
