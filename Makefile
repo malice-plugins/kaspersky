@@ -7,6 +7,7 @@ VERSION=$(shell cat VERSION)
 KASPERSKY_KEY?=$(shell cat license.key | base64)
 
 MALWARE=tests/malware
+# MALWARE=tests/eicar.pdf
 NOT_MALWARE=tests/not.malware
 
 all: build size tag test_all

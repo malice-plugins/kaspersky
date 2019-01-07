@@ -1,9 +1,9 @@
 {
   "kaspersky": {
     "infected": true,
-    "result": "Backdoor.Win32.Lecna.ab",
+    "result": "EICAR-Test-File",
     "engine": "8.0.4.312",
-    "database": "9337430",
-    "updated": "20181202"
+    "database": "9314122",
+    "updated": "20190107"
   }
 }
