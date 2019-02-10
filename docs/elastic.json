@@ -1,5 +1,5 @@
 {
-  "took": 59,
+  "took": 154,
   "timed_out": false,
   "_shards": {
     "total": 1,
@@ -14,43 +14,43 @@
       {
         "_index": "malice",
         "_type": "samples",
-        "_id": "ObEWKmgBEZR801PrnCBZ",
+        "_id": "mUL81GgBOBH6onWOE_9t",
         "_score": 1,
         "_source": {
           "plugins": {
             "av": {
               "kaspersky": {
-                "database": "9314122",
+                "database": "9515591",
                 "engine": "8.0.4.312",
                 "infected": true,
-                "markdown": "#### Kaspersky\n| Infected      | Result      | Engine      | Updated      |\n|:-------------:|:-----------:|:-----------:|:------------:|\n| true | Backdoor.Win32.Lecna.ab | 8.0.4.312 | 20190107 |\n",
+                "markdown": "#### Kaspersky\n| Infected      | Result      | Engine      | Updated      |\n|:-------------:|:-----------:|:-----------:|:------------:|\n| true | Backdoor.Win32.Lecna.ab | 8.0.4.312 | 20190210 |\n",
                 "result": "Backdoor.Win32.Lecna.ab",
-                "updated": "20190107"
+                "updated": "20190210"
               }
             }
           },
-          "scan_date": "2019-01-07T20:52:31.440651364Z"
+          "scan_date": "2019-02-10T01:18:36.3730451Z"
         }
       },
       {
         "_index": "malice",
         "_type": "samples",
-        "_id": "OrEXKmgBEZR801PrBiBu",
+        "_id": "mkL81GgBOBH6onWOfv9w",
         "_score": 1,
         "_source": {
           "plugins": {
             "av": {
               "kaspersky": {
-                "database": "9314122",
+                "database": "9515591",
                 "engine": "8.0.4.312",
                 "infected": false,
-                "markdown": "#### Kaspersky\n| Infected      | Result      | Engine      | Updated      |\n|:-------------:|:-----------:|:-----------:|:------------:|\n| false |  | 8.0.4.312 | 20190107 |\n",
+                "markdown": "#### Kaspersky\n| Infected      | Result      | Engine      | Updated      |\n|:-------------:|:-----------:|:-----------:|:------------:|\n| false |  | 8.0.4.312 | 20190210 |\n",
                 "result": "",
-                "updated": "20190107"
+                "updated": "20190210"
               }
             }
           },
-          "scan_date": "2019-01-07T20:52:58.604237586Z"
+          "scan_date": "2019-02-10T01:19:03.7903367Z"
         }
       }
     ]

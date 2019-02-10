@@ -9,6 +9,8 @@
 
 ### License
 
+> **NOTE:** I have to VPN to Cali for the site to work
+
 - Get Trial Code Here: https://www.kaspersky.com/small-to-medium-business-security/downloads/file-server-free-trial
 - To convert your activation code to a license.key go here: https://activation.kaspersky.com/en/
 - Activate Trial Code Here: https://keyfile.kaspersky.com/en/
@@ -28,10 +30,6 @@ https://my.kaspersky.com/MyLicenses#allx
 - https://products.s.kaspersky-labs.com/multilanguage/endpoints/kesl/kesl_10.0.0-3458_amd64.deb
 - https://products.s.kaspersky-labs.com/multilanguage/endpoints/kesl/klnagent_10.1.1-26_i386.deb
 - https://products.s.kaspersky-labs.com/multilanguage/file_servers/kavlinuxserver8.0/kav4fs_8.0.4-312_i386.deb
-
-## Stargazers over time
-
-[![Stargazers over time](https://starcharts.herokuapp.com/maliceio/malice.svg)](https://starcharts.herokuapp.com/maliceio/malice)
 
 ## Others
 

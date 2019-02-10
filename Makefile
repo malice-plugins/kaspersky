@@ -50,6 +50,10 @@ push: build tag
 	docker push $(ORG)/$(NAME):$(VERSION)
 	docker push $(ORG)/$(NAME):latest
 
+.PHONY: key
+key:
+	@$(shell cat license.key | base64 | pbcopy)
+
 go-test:
 	go get
 	go test -v
@@ -79,7 +83,7 @@ ifeq ("$(shell docker inspect -f {{.State.Running}} elasticsearch)", "true")
 	@docker rm -f elasticsearch || true
 endif
 	@echo "===> Starting elasticsearch"
-	@docker run --init -d --name elasticsearch -p 9200:9200 malice/elasticsearch:6.5; sleep 15
+	@docker run --init -d --name elasticsearch malice/elasticsearch:6.6; sleep 20
 
 .PHONY: malware
 malware:
@@ -104,7 +108,7 @@ test_elastic: start_elasticsearch malware
 	docker run --rm --link elasticsearch -e MALICE_ELASTICSEARCH_URL=http://elasticsearch:9200 -v $(PWD):/malware $(ORG)/$(NAME):$(VERSION) -V $(MALWARE)
 	@echo "===> ${NAME} test_elastic NOT found"
 	docker run --rm --link elasticsearch -e MALICE_ELASTICSEARCH_URL=http://elasticsearch:9200 -v $(PWD):/malware $(ORG)/$(NAME):$(VERSION) -V $(NOT_MALWARE)
-	http localhost:9200/malice/_search | jq . > docs/elastic.json
+	@docker run --rm --link elasticsearch --entrypoint=sh blacktop/httpie -c "http elasticsearch:9200/malice/_search | jq ." > docs/elastic.json
 
 .PHONY: test_markdown
 test_markdown: test_elastic
